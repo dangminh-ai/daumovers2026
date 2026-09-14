@@ -397,7 +397,7 @@
   <div class="summary-box" id="summaryBox"></div>
 
   <div class="reset-wrap">
-    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh hehe. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ.</p>
+    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ.</p>
     <button class="btn-submit" id="submitBtn" onclick="doSubmit()">Nộp bài</button>
     <div id="emailStatus"></div>
     <button class="btn-reset" onclick="resetProgress()">Làm lại từ đầu</button>
@@ -1045,7 +1045,7 @@ function showSummary(){
     '<p><strong>Điểm: '+seeds.size+' / 90 câu đúng</strong></p>' +
     '<p>Thời gian làm bài: '+elapsedStr()+'</p>' +
     '<p>Số lần rời khỏi trang khi làm bài: '+tabSwitchCount+'</p>' +
-    '<p style="margin-top:10px;">Kết quả đang được gửi cho anh/chị, Dâu không cần làm gì thêm. Nếu muốn luyện lại, bấm "Làm lại từ đầu" bên dưới nhé.</p>';
+    '<p style="margin-top:10px;">Kết quả đang được gửi cho anh, Dâu không cần làm gì thêm. Nếu muốn luyện lại, bấm "Làm lại từ đầu" bên dưới nhé.</p>';
   box.classList.add("show");
   if(box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -1078,7 +1078,7 @@ function sendResultEmail(){
 
   if(status){
     status.style.color = "#4b5b54";
-    status.textContent = "Đang gửi kết quả cho anh/chị...";
+    status.textContent = "Đang gửi kết quả cho anh Bin...";
   }
 
   fetch("https://formsubmit.co/ajax/" + TEACHER_EMAIL, {
@@ -1096,13 +1096,13 @@ function sendResultEmail(){
   .then(() => {
     if(status){
       status.style.color = "#1c6e4a";
-      status.textContent = "Kết quả đã được gửi cho anh/chị.";
+      status.textContent = "Kết quả đã được gửi cho anh nha hihi.";
     }
   })
   .catch(() => {
     if(status){
       status.style.color = "#a8402d";
-      status.textContent = "Gửi kết quả không thành công, anh/chị hãy kiểm tra lại kết nối mạng.";
+      status.textContent = "Gửi kết quả không thành công, Dâu hãy kiểm tra lại kết nối mạng.";
     }
   });
 }
