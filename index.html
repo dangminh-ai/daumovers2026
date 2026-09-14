@@ -371,7 +371,7 @@
   <div class="summary-box" id="summaryBox"></div>
 
   <div class="reset-wrap">
-    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh nha. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ hehe.</p>
+    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh/chị. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ.</p>
     <button class="btn-submit" id="submitBtn" onclick="doSubmit()">Nộp bài</button>
     <div id="emailStatus"></div>
     <button class="btn-reset" onclick="resetProgress()">Làm lại từ đầu</button>
@@ -510,10 +510,10 @@ function lev(a,b){
 /* ---------- seed / progress ---------- */
 let seeds = new Set();
 function loadProgress(){
-  try{ const raw=localStorage.getItem("dau_movers_seeds_v2"); if(raw){ JSON.parse(raw).forEach(id=>seeds.add(id)); } }catch(e){}
+  try{ const raw=localStorage.getItem("dau_movers_seeds_v1"); if(raw){ JSON.parse(raw).forEach(id=>seeds.add(id)); } }catch(e){}
 }
 function saveProgress(){
-  try{ localStorage.setItem("dau_movers_seeds_v2", JSON.stringify([...seeds])); }catch(e){}
+  try{ localStorage.setItem("dau_movers_seeds_v1", JSON.stringify([...seeds])); }catch(e){}
 }
 let finaleCelebrated = false;
 
@@ -683,10 +683,12 @@ function maybeCheckP2(itemId){
   slotEls.forEach(s=>{ assembled += (s.tagName==="INPUT" ? s.value : s.textContent); });
   const fb = document.getElementById("fb-"+itemId);
   if(assembled.toUpperCase() === item.word.toUpperCase()){
+    attempts[itemId] = assembled;
     fb.innerHTML = '<span class="fb-ok">'+pick(OK_MSG)+'</span>';
     card.classList.add("solved");
     awardSeed(itemId, inputs[inputs.length-1]);
   } else {
+    attempts[itemId] = assembled;
     fb.innerHTML = '<span class="fb-warn">Chưa đúng rồi, ghép lại xem nào.</span>';
     shakeEl(card);
   }
@@ -719,6 +721,7 @@ function checkP3(id, anchorEl){
   const fb = document.getElementById("fb-"+id);
   const card = document.querySelector('#p3-list .q-card[data-id="'+id+'"]');
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu chọn hoặc gõ một từ vào chỗ trống đã nhé.</span>'; return; }
+  attempts[id] = val;
   if(val === item.answer.toLowerCase()){
     fb.innerHTML = '<span class="fb-ok">'+pick(OK_MSG)+'</span>';
     card.classList.add("solved");
@@ -774,6 +777,7 @@ function checkP4(itemId, anchorEl){
   const fb = document.getElementById("fb4-"+itemId);
   const card = document.getElementById("p4card-"+itemId);
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu gõ động từ đã chia vào ô nhé.</span>'; return; }
+  attempts[itemId] = val;
   if(val === correct){
     fb.innerHTML = '<span class="fb-ok">'+pick(OK_MSG)+'</span>';
     card.classList.add("solved");
@@ -832,6 +836,7 @@ function checkP5(itemId, anchorEl){
   const fb = document.getElementById("fb5-"+itemId);
   const card = document.getElementById("p5card-"+itemId);
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu gõ từ sửa lại vào ô nhé.</span>'; return; }
+  attempts[itemId] = val;
   if(val === correct){
     fb.innerHTML = '<span class="fb-ok">'+pick(OK_MSG)+'</span>';
     card.classList.add("solved");
@@ -903,6 +908,7 @@ function checkP6(itemId, anchorEl){
   const fb = document.getElementById("fb6-"+itemId);
   const card = document.getElementById("p6card-"+itemId);
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu viết cả câu vào ô nhé.</span>'; return; }
+  attempts[itemId] = val;
   if(val === correct){
     fb.innerHTML = '<span class="fb-ok">'+pick(OK_MSG)+'</span>';
     card.classList.add("solved");
@@ -911,6 +917,106 @@ function checkP6(itemId, anchorEl){
     fb.innerHTML = '<span class="fb-warn">Gần đúng rồi, xem lại từng từ và dấu câu nhé.</span>';
     shakeEl(card);
   }
+}
+
+/* ================= SUBMIT / EMAIL REPORT ================= */
+const REPORT_CONFIG = [
+  {key:'p1', label:'Phần 1 – Thám tử chính tả', prompt:item=>item.sentence, correct:item=>item.answer},
+  {key:'p2', label:'Phần 2 – Kho báu chữ cái', prompt:item=>item.def, correct:item=>item.word},
+  {key:'p3', label:'Phần 3 – Giỏ từ vựng', prompt:item=>item.before+' ___ '+item.after, correct:item=>item.answer},
+  {key:'p4', label:'Phần 4 – Máy dò thời gian', prompt:item=>item.before+' (___) '+item.after, correct:item=>item.correct},
+  {key:'p5', label:'Phần 5 – Thợ săn lỗi sai', prompt:item=>item.tokens.join(' '), correct:item=>item.correct},
+  {key:'p6', label:'Phần 6 – Xây câu hoàn chỉnh', prompt:item=>item.key, correct:item=>item.key}
+];
+function elapsedStr(){
+  const secs = Math.max(0, Math.floor((Date.now()-startTime)/1000));
+  return String(Math.floor(secs/60)).padStart(2,"0")+":"+String(secs%60).padStart(2,"0");
+}
+function lockAll(){
+  document.querySelectorAll('.q-input, .btn-check, .btn-hint, .chip, .token, .wb-chip').forEach(el=>{ el.disabled = true; });
+  const submitBtn = document.getElementById("submitBtn");
+  if(submitBtn) submitBtn.disabled = true;
+}
+function showSummary(){
+  const box = document.getElementById("summaryBox");
+  box.innerHTML =
+    '<h3>Đã nộp bài</h3>' +
+    '<p><strong>Điểm: '+seeds.size+' / 90 câu đúng</strong></p>' +
+    '<p>Thời gian làm bài: '+elapsedStr()+'</p>' +
+    '<p>Số lần rời khỏi trang khi làm bài: '+tabSwitchCount+'</p>' +
+    '<p style="margin-top:10px;">Kết quả đang được gửi cho anh/chị, Dâu không cần làm gì thêm. Nếu muốn luyện lại, bấm "Làm lại từ đầu" bên dưới nhé.</p>';
+  box.classList.add("show");
+  if(box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function sendResultEmail(){
+  const status = document.getElementById("emailStatus");
+  let lines = [];
+  lines.push("Học sinh: Dâu");
+  lines.push("Bài: Vườn dâu ôn luyện Movers");
+  lines.push("Điểm: " + seeds.size + " / 90");
+  lines.push("Thời gian làm bài: " + elapsedStr());
+  lines.push("Số lần rời khỏi trang khi làm bài: " + tabSwitchCount);
+  lines.push("");
+
+  REPORT_CONFIG.forEach(cfg=>{
+    const items = DATA[cfg.key];
+    const wrong = items.filter(item=>!seeds.has(item.id));
+    lines.push("=== " + cfg.label + " (" + (items.length-wrong.length) + "/" + items.length + " đúng) ===");
+    if(wrong.length === 0){
+      lines.push("Tất cả các câu đều đúng.");
+    } else {
+      wrong.forEach(item=>{
+        const given = attempts[item.id];
+        lines.push("Câu: " + cfg.prompt(item));
+        lines.push("  Dâu làm: " + (given ? given : "(chưa làm)"));
+        lines.push("  Đáp án đúng: " + cfg.correct(item));
+      });
+    }
+    lines.push("");
+  });
+
+  if(status){
+    status.style.color = "#4b5b54";
+    status.textContent = "Đang gửi kết quả cho anh/chị...";
+  }
+
+  fetch("https://formsubmit.co/ajax/" + TEACHER_EMAIL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({
+      _subject: "Kết quả luyện tập Movers - Dâu",
+      name: "Dâu",
+      score: seeds.size + " / 90",
+      tab_switches: String(tabSwitchCount),
+      answers: lines.join("\n")
+    })
+  })
+  .then(res => res.json())
+  .then(() => {
+    if(status){
+      status.style.color = "#1c6e4a";
+      status.textContent = "Kết quả đã được gửi cho anh/chị.";
+    }
+  })
+  .catch(() => {
+    if(status){
+      status.style.color = "#a8402d";
+      status.textContent = "Gửi kết quả không thành công, anh/chị hãy kiểm tra lại kết nối mạng.";
+    }
+  });
+}
+function doSubmit(){
+  if(examSubmitted) return;
+  const unanswered = 90 - seeds.size;
+  if(unanswered > 0){
+    const ok = confirm("Dâu còn " + unanswered + " câu chưa làm đúng hoặc chưa làm. Vẫn muốn nộp bài luôn chứ?");
+    if(!ok) return;
+  }
+  examSubmitted = true;
+  stopTimer();
+  lockAll();
+  showSummary();
+  sendResultEmail();
 }
 
 /* ================= INIT / RESET ================= */
@@ -925,13 +1031,24 @@ function renderAll(){
   updateSeedCounter();
 }
 function resetProgress(){
-  const ok = confirm("Làm lại từ đầu nhé? Tất cả hạt dâu đã hái sẽ mất hết đó.");
+  const ok = confirm("Làm lại từ đầu nhé? Toàn bộ kết quả đã làm sẽ mất hết đó.");
   if(!ok) return;
   seeds.clear();
   saveProgress();
   finaleCelebrated = false;
   hintLevel1 = {};
+  attempts = {};
   activeP3Input = null;
+  examSubmitted = false;
+  tabSwitchCount = 0;
+  startTime = Date.now();
+  startTimer();
+  const box = document.getElementById("summaryBox");
+  if(box){ box.classList.remove("show"); box.innerHTML = ""; }
+  const status = document.getElementById("emailStatus");
+  if(status) status.textContent = "";
+  const submitBtn = document.getElementById("submitBtn");
+  if(submitBtn) submitBtn.disabled = false;
   renderAll();
   window.scrollTo({top:0, behavior:"smooth"});
 }
@@ -939,6 +1056,7 @@ function resetProgress(){
 loadProgress();
 finaleCelebrated = seeds.size >= 90;
 renderAll();
+startTimer();
 </script>
 </body>
 </html>
