@@ -371,7 +371,7 @@
   <div class="summary-box" id="summaryBox"></div>
 
   <div class="reset-wrap">
-    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh/chị. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ.</p>
+    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh nha. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ hehe.</p>
     <button class="btn-submit" id="submitBtn" onclick="doSubmit()">Nộp bài</button>
     <div id="emailStatus"></div>
     <button class="btn-reset" onclick="resetProgress()">Làm lại từ đầu</button>
@@ -510,10 +510,10 @@ function lev(a,b){
 /* ---------- seed / progress ---------- */
 let seeds = new Set();
 function loadProgress(){
-  try{ const raw=localStorage.getItem("dau_movers_seeds_v1"); if(raw){ JSON.parse(raw).forEach(id=>seeds.add(id)); } }catch(e){}
+  try{ const raw=localStorage.getItem("dau_movers_seeds_v2"); if(raw){ JSON.parse(raw).forEach(id=>seeds.add(id)); } }catch(e){}
 }
 function saveProgress(){
-  try{ localStorage.setItem("dau_movers_seeds_v1", JSON.stringify([...seeds])); }catch(e){}
+  try{ localStorage.setItem("dau_movers_seeds_v2", JSON.stringify([...seeds])); }catch(e){}
 }
 let finaleCelebrated = false;
 
