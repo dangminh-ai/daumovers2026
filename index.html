@@ -177,6 +177,7 @@
     transition:box-shadow .15s ease;
   }
   .q-card.solved{ box-shadow:0 4px 14px rgba(63,138,92,0.18); }
+  .q-card.locked{ opacity:0.88; }
   .q-head{ display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
   .q-badge{
     flex:0 0 auto; width:26px; height:26px; border-radius:50%;
@@ -397,7 +398,7 @@
   <div class="summary-box" id="summaryBox"></div>
 
   <div class="reset-wrap">
-    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ.</p>
+    <p class="submit-note">Khi Dâu bấm "Nộp bài", kết quả và các câu làm sai sẽ được gửi tự động cho anh/chị. Nộp bài xong Dâu vẫn có thể bấm "Làm lại từ đầu" để luyện lại toàn bộ.</p>
     <button class="btn-submit" id="submitBtn" onclick="doSubmit()">Nộp bài</button>
     <div id="emailStatus"></div>
     <button class="btn-reset" onclick="resetProgress()">Làm lại từ đầu</button>
@@ -586,6 +587,19 @@ let finaleCelebrated = false;
 /* ---------- exam state: attempts, timer, focus tracking ---------- */
 const TEACHER_EMAIL = "ddangminh1905@gmail.com";
 let attempts = {};       // itemId -> last value Dâu typed/assembled (right or wrong)
+let attemptCounts = {};  // itemId -> number of wrong tries (locked after 2)
+function registerAttempt(id){
+  attemptCounts[id] = (attemptCounts[id]||0) + 1;
+  return attemptCounts[id];
+}
+function isLocked(id){
+  return (attemptCounts[id]||0) >= 2;
+}
+function lockItem(card){
+  if(!card) return;
+  card.classList.add("locked");
+  card.querySelectorAll("input, button").forEach(el=>{ el.disabled = true; });
+}
 let examSubmitted = false;
 let tabSwitchCount = 0;
 let startTime = Date.now();
@@ -711,6 +725,7 @@ function checkP1(id, anchorEl){
   const val = normalize(inputEl.value);
   const fb = document.getElementById("fb-"+id);
   const card = document.querySelector('#p1-list .q-card[data-id="'+id+'"]');
+  if(isLocked(id)) return;
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu gõ từ vào ô đã nhé.</span>'; return; }
   attempts[id] = val;
   if(val === item.answer.toLowerCase()){
@@ -718,9 +733,15 @@ function checkP1(id, anchorEl){
     card.classList.add("solved");
     awardSeed(item.id, anchorEl);
   } else {
-    const d = lev(val, item.answer.toLowerCase());
-    fb.innerHTML = (d>0 && d<=2) ? '<span class="fb-close">'+pick(CLOSE_MSG)+'</span>' : '<span class="fb-warn">'+pick(WARN_MSG)+'</span>';
-    shakeEl(card);
+    const n = registerAttempt(id);
+    if(n >= 2){
+      fb.innerHTML = '<span class="fb-warn">Dâu đã thử 2 lần cho câu này rồi, hết lượt. Làm lại bài để thử lại nhé.</span>';
+      lockItem(card);
+    } else {
+      const d = lev(val, item.answer.toLowerCase());
+      fb.innerHTML = (d>0 && d<=2) ? '<span class="fb-close">'+pick(CLOSE_MSG)+' (còn 1 lượt thử)</span>' : '<span class="fb-warn">'+pick(WARN_MSG)+' (còn 1 lượt thử)</span>';
+      shakeEl(card);
+    }
   }
 }
 
@@ -776,6 +797,7 @@ function onSlotKeydown(e){
 function maybeCheckP2(itemId){
   const item = DATA.p2.find(x=>x.id===itemId);
   const card = document.querySelector('#p2-list .q-card[data-id="'+itemId+'"]');
+  if(isLocked(itemId)) return;
   const inputs = card.querySelectorAll("input.slot");
   const allFilled = [...inputs].every(i=>i.value.length===1);
   if(!allFilled) return;
@@ -790,8 +812,14 @@ function maybeCheckP2(itemId){
     awardSeed(itemId, inputs[inputs.length-1]);
   } else {
     attempts[itemId] = assembled;
-    fb.innerHTML = '<span class="fb-warn">Chưa đúng rồi, ghép lại xem nào.</span>';
-    shakeEl(card);
+    const n = registerAttempt(itemId);
+    if(n >= 2){
+      fb.innerHTML = '<span class="fb-warn">Dâu đã thử 2 lần cho câu này rồi, hết lượt. Làm lại bài để thử lại nhé.</span>';
+      lockItem(card);
+    } else {
+      fb.innerHTML = '<span class="fb-warn">Chưa đúng rồi, ghép lại xem nào. (còn 1 lượt thử)</span>';
+      shakeEl(card);
+    }
   }
 }
 
@@ -821,6 +849,7 @@ function checkP3(id, anchorEl){
   const val = normalize(inputEl.value);
   const fb = document.getElementById("fb-"+id);
   const card = document.querySelector('#p3-list .q-card[data-id="'+id+'"]');
+  if(isLocked(id)) return;
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu chọn hoặc gõ một từ vào chỗ trống đã nhé.</span>'; return; }
   attempts[id] = val;
   if(val === item.answer.toLowerCase()){
@@ -828,9 +857,15 @@ function checkP3(id, anchorEl){
     card.classList.add("solved");
     awardSeed(item.id, anchorEl);
   } else {
-    const d = lev(val, item.answer.toLowerCase());
-    fb.innerHTML = (d>0 && d<=2) ? '<span class="fb-close">Gần đúng rồi, đếm lại số chữ trong từ này xem có khớp với từ trong giỏ không nhé.</span>' : '<span class="fb-warn">'+pick(WARN_MSG)+'</span>';
-    shakeEl(card);
+    const n = registerAttempt(id);
+    if(n >= 2){
+      fb.innerHTML = '<span class="fb-warn">Dâu đã thử 2 lần cho câu này rồi, hết lượt. Làm lại bài để thử lại nhé.</span>';
+      lockItem(card);
+    } else {
+      const d = lev(val, item.answer.toLowerCase());
+      fb.innerHTML = (d>0 && d<=2) ? '<span class="fb-close">Gần đúng rồi, đếm lại số chữ trong từ này xem có khớp với từ trong giỏ không nhé. (còn 1 lượt thử)</span>' : '<span class="fb-warn">'+pick(WARN_MSG)+' (còn 1 lượt thử)</span>';
+      shakeEl(card);
+    }
   }
 }
 
@@ -877,6 +912,7 @@ function checkP4(itemId, anchorEl){
   const correct = item.correct.toLowerCase();
   const fb = document.getElementById("fb4-"+itemId);
   const card = document.getElementById("p4card-"+itemId);
+  if(isLocked(itemId)) return;
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu gõ động từ đã chia vào ô nhé.</span>'; return; }
   attempts[itemId] = val;
   if(val === correct){
@@ -884,9 +920,15 @@ function checkP4(itemId, anchorEl){
     card.classList.add("solved");
     awardSeed(itemId, anchorEl);
   } else {
-    const d = lev(val, correct);
-    fb.innerHTML = (d>0 && d<=2) ? '<span class="fb-close">Gần đúng rồi, xem lại đã thêm to be hoặc đuôi -s, -es chưa nhé.</span>' : '<span class="fb-warn">'+pick(WARN_MSG)+'</span>';
-    shakeEl(card);
+    const n = registerAttempt(itemId);
+    if(n >= 2){
+      fb.innerHTML = '<span class="fb-warn">Dâu đã thử 2 lần cho câu này rồi, hết lượt. Làm lại bài để thử lại nhé.</span>';
+      lockItem(card);
+    } else {
+      const d = lev(val, correct);
+      fb.innerHTML = (d>0 && d<=2) ? '<span class="fb-close">Gần đúng rồi, xem lại đã thêm to be hoặc đuôi -s, -es chưa nhé. (còn 1 lượt thử)</span>' : '<span class="fb-warn">'+pick(WARN_MSG)+' (còn 1 lượt thử)</span>';
+      shakeEl(card);
+    }
   }
 }
 
@@ -936,6 +978,7 @@ function checkP5(itemId, anchorEl){
   const correct = normalizePunct(item.correct);
   const fb = document.getElementById("fb5-"+itemId);
   const card = document.getElementById("p5card-"+itemId);
+  if(isLocked(itemId)) return;
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu gõ từ sửa lại vào ô nhé.</span>'; return; }
   attempts[itemId] = val;
   if(val === correct){
@@ -943,8 +986,14 @@ function checkP5(itemId, anchorEl){
     card.classList.add("solved");
     awardSeed(itemId, anchorEl);
   } else {
-    fb.innerHTML = '<span class="fb-warn">'+pick(WARN_MSG)+'</span>';
-    shakeEl(card);
+    const n = registerAttempt(itemId);
+    if(n >= 2){
+      fb.innerHTML = '<span class="fb-warn">Dâu đã thử 2 lần cho câu này rồi, hết lượt. Làm lại bài để thử lại nhé.</span>';
+      lockItem(card);
+    } else {
+      fb.innerHTML = '<span class="fb-warn">'+pick(WARN_MSG)+' (còn 1 lượt thử)</span>';
+      shakeEl(card);
+    }
   }
 }
 
@@ -1008,6 +1057,7 @@ function checkP6(itemId, anchorEl){
   const correct = normalizePunct(item.key);
   const fb = document.getElementById("fb6-"+itemId);
   const card = document.getElementById("p6card-"+itemId);
+  if(isLocked(itemId)) return;
   if(!val){ fb.innerHTML = '<span class="fb-warn">Dâu viết cả câu vào ô nhé.</span>'; return; }
   attempts[itemId] = val;
   if(val === correct){
@@ -1015,8 +1065,14 @@ function checkP6(itemId, anchorEl){
     card.classList.add("solved");
     awardSeed(itemId, anchorEl);
   } else {
-    fb.innerHTML = '<span class="fb-warn">Gần đúng rồi, xem lại từng từ và dấu câu nhé.</span>';
-    shakeEl(card);
+    const n = registerAttempt(itemId);
+    if(n >= 2){
+      fb.innerHTML = '<span class="fb-warn">Dâu đã thử 2 lần cho câu này rồi, hết lượt. Làm lại bài để thử lại nhé.</span>';
+      lockItem(card);
+    } else {
+      fb.innerHTML = '<span class="fb-warn">Gần đúng rồi, xem lại từng từ và dấu câu nhé. (còn 1 lượt thử)</span>';
+      shakeEl(card);
+    }
   }
 }
 
@@ -1045,7 +1101,7 @@ function showSummary(){
     '<p><strong>Điểm: '+seeds.size+' / 90 câu đúng</strong></p>' +
     '<p>Thời gian làm bài: '+elapsedStr()+'</p>' +
     '<p>Số lần rời khỏi trang khi làm bài: '+tabSwitchCount+'</p>' +
-    '<p style="margin-top:10px;">Kết quả đang được gửi cho anh, Dâu không cần làm gì thêm. Nếu muốn luyện lại, bấm "Làm lại từ đầu" bên dưới nhé.</p>';
+    '<p style="margin-top:10px;">Kết quả đang được gửi cho anh/chị, Dâu không cần làm gì thêm. Nếu muốn luyện lại, bấm "Làm lại từ đầu" bên dưới nhé.</p>';
   box.classList.add("show");
   if(box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -1078,7 +1134,7 @@ function sendResultEmail(){
 
   if(status){
     status.style.color = "#4b5b54";
-    status.textContent = "Đang gửi kết quả cho anh Bin...";
+    status.textContent = "Đang gửi kết quả cho anh/chị...";
   }
 
   fetch("https://formsubmit.co/ajax/" + TEACHER_EMAIL, {
@@ -1096,13 +1152,13 @@ function sendResultEmail(){
   .then(() => {
     if(status){
       status.style.color = "#1c6e4a";
-      status.textContent = "Kết quả đã được gửi cho anh nha hihi.";
+      status.textContent = "Kết quả đã được gửi cho anh/chị.";
     }
   })
   .catch(() => {
     if(status){
       status.style.color = "#a8402d";
-      status.textContent = "Gửi kết quả không thành công, Dâu hãy kiểm tra lại kết nối mạng.";
+      status.textContent = "Gửi kết quả không thành công, anh/chị hãy kiểm tra lại kết nối mạng.";
     }
   });
 }
@@ -1139,6 +1195,7 @@ function resetProgress(){
   finaleCelebrated = false;
   hintLevel1 = {};
   attempts = {};
+  attemptCounts = {};
   activeP3Input = null;
   examSubmitted = false;
   tabSwitchCount = 0;
